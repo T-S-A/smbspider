@@ -1,11 +1,58 @@
 #!/usr/bin/python
+# SMB Spider
+# Created by T$A
 #
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
+import time
+import Queue
+import threading
 import argparse
 from netaddr import *
 from nmb.NetBIOS import NetBIOS
 from smb.SMBConnection import SMBConnection
-__author__ = 'T$A'
+
+class scan_thread (threading.Thread):
+   def __init__(self,ip,share,subfolder,user,pwd,domain,recursive,pattern):
+       threading.Thread.__init__(self)
+       self.ip = ip
+       self.share = share
+       self.subfolder = subfolder
+       self.user = user
+       self.pwd = pwd
+       self.domain = domain
+       self.recursive = recursive
+       self.pattern = pattern
+   
+   def run(self):
+      print "Starting thread for " + self.ip
+      net = NetBIOS()
+      net_name = str(net.queryIPForName(self.ip)).strip("['").strip("']")
+      net.close()
+      conn = SMBConnection(self.user, self.pwd, 'cobwebs', net_name, domain=self.domain, use_ntlm_v2 = False)
+      if conn.connect(self.ip, port=139, timeout=10):
+         print ("Connecting to %s was successful! How about a nice game of spidering %s%s?" % (self.ip, self.share, self.subfolder))
+      else:
+         print ("Connection error: %s" % (self.ip))
+      if self.recursive > 0:
+         recurse(conn,self.ip,self.share,self.subfolder,self.pattern,int(self.recursive))    
+      else:
+         filelist = conn.listPath(self.share, self.subfolder)
+         dir_list(filelist,self.ip,self.subfolder,self.pattern)
+      conn.close()
+      print "Exiting thread for " + self.ip
 
 def get_ips(iparg):
    ips = []
@@ -38,7 +85,7 @@ def recurse(smb_conn,ip,share,subfolder,patt,depth):
       if depth == 0:
          return 0
    except:
-      print ("//%s/%s [Unable to read]" % (ip, subfolder))
+      print ("//%s/%s [Unable to read]" % (ip, subfolder.replace("//","")))
       return 1
 
    for result in filelist:
@@ -51,35 +98,9 @@ def dir_list(files,ip,path,pattern):
       for instance in pattern:
          if instance in result.filename:
             if result.isDirectory:
-               print ("//%s/%s/%s [dir]" % (ip,path,result.filename))
+               print ("//%s/%s/%s [dir]" % (ip,path.replace("//",""),result.filename))
             else:
-	       print ("//%s/%s/%s" % (ip,path,result.filename))
-   return 0
-
-def spider_host(ip,share,subfolder,user,pwd,domain,recursive,pattern):
-   net = NetBIOS()
-   net_name = str(net.queryIPForName(ip)).strip("['").strip("']")
-   net.close()
-
-   conn = SMBConnection(user, pwd, 'cobwebs', net_name, domain=domain, use_ntlm_v2 = False)
-   if conn.connect(ip, port=139, timeout=5):
-      print ("Connecting to %s was a success! How about a nice game of spidering %s%s?" % (ip, share, subfolder))
-   else:
-      print ("Connection error: %s" % (ip))
-      return 1
-   if recursive > 0:
-      recurse(conn,ip,share,subfolder,pattern,int(recursive))    
-   else:
-      filelist = conn.listPath(share, subfolder)
-      dir_list(filelist,ip, subfolder, pattern)
-   conn.close()
-
-def spider_ips(queue,ip,share,subfolder,user,pwd,domain,recursive,pattern):
-   while True:
-      if ipQueue.empty():
-         return 0
-      ip = queue.get()
-      spider_host(ip,share,subfolder,user,pwd,domain,recursive,pattern)
+               print ("//%s/%s/%s" % (ip,path.replace("//",""),result.filename))
    return 0
 
 # parse the arguments
@@ -93,6 +114,7 @@ parser.add_argument('-u','--user',help='SMB user to connect with', default='', r
 parser.add_argument('-p','--pwd',help='SMB password to connect with', default='', required=False)
 parser.add_argument('-d','--domain',help='SMB domain to connect with', default='', required=False)
 parser.add_argument('-r','--recursive',help='Spider subfolders. Set value for depth.', default=0, required=False)
+parser.add_argument('-t','--threads',help='Number of threads', default=1, required=False)
 args = parser.parse_args()
 
 # get the list of ips
@@ -115,6 +137,16 @@ else:
    pattern.append(args.pattern)
 
 for ip in ips:
-   spider_host(ip,args.share,args.subfolder,args.user,args.pwd,args.domain,args.recursive,pattern)
+   #create a thread
+   thread = scan_thread(ip,args.share,args.subfolder,args.user,args.pwd,args.domain,args.recursive,pattern)
+   thread.start()
+   
+   #make sure threads do not exceed the threshold set by the -t arg
+   while threading.activeCount() > int(args.threads):
+      time.sleep(0.01)
+
+#make sure all spidering threads are dead before closing primary thread   
+while threading.activeCount() > 1:
+    time.sleep(0.01)
 
 print ("Done spidering...")
