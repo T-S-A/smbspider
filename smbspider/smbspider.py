@@ -103,15 +103,16 @@ def dir_list(files,ip,path,pattern):
                print ("//%s/%s/%s" % (ip,path.replace("//",""),result.filename))
    return 0
 
+start_time = time.time()
+
 banner = " ____________________________________________"
 banner += "\n |\'-._(   /                                 |"
 banner += "\n | \  .'-._\                           ,   ,|"
-banner += "\n |-.\'    .-;                         .'\`-' |"
-banner += "\n |   \  .' (                      _.'   \   |"
+banner += "\n |-.\'    .-;    SMB Spider           .'\`-' |"
+banner += "\n |   \  .' (    v1.0 beta         _.'   \   |"
 banner += "\n |.--.\'   _)                   ;-;       \._|"
 banner += "\n |    ` _\(_)/_                 \ `'-,_,-'\ |"
 banner += "\n |______ /(O)\  ________________/____)_`-._\|"
-banner += "\n\n SMB Spider v0.2beta, Authors: T$A"
 banner += "\n"
 print (banner)
 
@@ -161,4 +162,4 @@ for ip in ips:
 while threading.activeCount() > 1:
     time.sleep(0.01)
 
-print ("Done spidering...")
+print ("Done spidering...\nCompleted in: %s" % (time.time() - start_time))
