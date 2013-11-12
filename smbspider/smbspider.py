@@ -103,6 +103,18 @@ def dir_list(files,ip,path,pattern):
                print ("//%s/%s/%s" % (ip,path.replace("//",""),result.filename))
    return 0
 
+banner = " ____________________________________________"
+banner += "\n |\'-._(   /                                 |"
+banner += "\n | \  .'-._\                           ,   ,|"
+banner += "\n |-.\'    .-;                         .'\`-' |"
+banner += "\n |   \  .' (                      _.'   \   |"
+banner += "\n |.--.\'   _)                   ;-;       \._|"
+banner += "\n |    ` _\(_)/_                 \ `'-,_,-'\ |"
+banner += "\n |______ /(O)\  ________________/____)_`-._\|"
+banner += "\n\n SMB Spider v0.2beta, Authors: T$A"
+banner += "\n"
+print (banner)
+
 # parse the arguments
 parser = argparse.ArgumentParser(description='SMB Spider will search shares. It is best used to search SMB shares for sensitive files, i.e., passwords.xls')
 parser.add_argument('-ip','--ipaddress', help='IP Address, IP/CIDR, IP Address File',required=True)
